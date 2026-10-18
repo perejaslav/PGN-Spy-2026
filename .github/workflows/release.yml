@@ -1,0 +1,76 @@
+name: Build and release
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 1.2.3 (leave empty to only build)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-2022 # VS 2022 image ships MFC; windows-latest (VS 18) does not
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: microsoft/setup-msbuild@v2
+
+      # Build the solution so both exes land in the shared Release\ folder.
+      # WindowsTargetPlatformVersion=10.0 uses the newest SDK on the runner.
+      - name: Build
+        shell: pwsh
+        run: |
+          msbuild 'PGN Spy.sln' /t:Build /m /p:Configuration=Release /p:Platform=Win32 /p:WindowsTargetPlatformVersion=10.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # pgn-extract.exe is not built from this repository; reuse the one shipped in v1.2.1.
+      - name: Get pgn-extract.exe
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          New-Item -ItemType Directory -Force old | Out-Null
+          gh release download v1.2.1 --repo $env:GITHUB_REPOSITORY --pattern '*.zip' --dir old
+          Get-ChildItem old -Filter *.zip | ForEach-Object { Expand-Archive $_.FullName -DestinationPath old\unzipped -Force }
+          $exe = Get-ChildItem old\unzipped -Recurse -Filter pgn-extract.exe | Select-Object -First 1
+          if (-not $exe) { throw 'pgn-extract.exe not found in the v1.2.1 release' }
+          Copy-Item $exe.FullName Release\
+
+      - name: Package
+        id: package
+        shell: pwsh
+        run: |
+          $version = '${{ github.event.inputs.version }}'
+          if (-not $version) { $version = 'dev-' + $env:GITHUB_SHA.Substring(0, 7) }
+          $name = "PGN-Spy-v$version-win32"
+          New-Item -ItemType Directory -Force "dist\$name" | Out-Null
+          Copy-Item 'Release\PGN Spy.exe','Release\uci-analyser.exe','Release\pgn-extract.exe' "dist\$name\"
+          Copy-Item README.md,README.ru.md,ReadMe.txt,LICENSE "dist\$name\"
+          Compress-Archive -Path "dist\$name\*" -DestinationPath "dist\$name.zip" -Force
+          "name=$name" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package.outputs.name }}
+          path: dist/${{ steps.package.outputs.name }}.zip
+
+      - name: Publish release
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.version != ''
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = '${{ github.event.inputs.version }}'
+          $notes = "release-notes.md"
+          $ru = "docs/releases/v$version.ru.md"
+          $en = "docs/releases/v$version.en.md"
+          if (-not (Test-Path $ru) -or -not (Test-Path $en)) { throw "Release notes for v$version are missing" }
+          (Get-Content $ru -Raw -Encoding utf8) + "`n`n---`n`n" + (Get-Content $en -Raw -Encoding utf8) | Set-Content $notes -Encoding utf8
+          gh release create "v$version" "dist/${{ steps.package.outputs.name }}.zip" --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "PGN Spy v$version" --notes-file $notes
