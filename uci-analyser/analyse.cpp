@@ -39,7 +39,7 @@
 
 using namespace std;
 
-static const char *VERSION = "2014.06.02-pgnspy-1.2.2";
+static const char *VERSION = "2014.06.02-pgnspy-1.2.3";
 
 // The length of algebraic moves expected by a UCI engine.
 #define ALGEBRAIC_MOVELEN 4
