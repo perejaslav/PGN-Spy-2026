@@ -31,6 +31,7 @@
 #ifdef __unix__
 #include <stdio.h>
 #include <unistd.h>
+#include <sys/types.h>
 #else
 #include "stdafx.h"
 #include <windows.h>
@@ -48,14 +49,15 @@ public:
 
     Engine(const string& engineName) {
 #ifdef __unix__
+        enginePID = -1;
         toEngine = NULL;
         fromEngine = NULL;
 #else
         writeToEngine = NULL;
         readFromEngine = NULL;
-#endif
         hEngineMonitor = NULL;
         m_hEngineProcess = NULL;
+#endif
         variations = 0;
         searchDepth = 0;
         searchMaxTime = 0;
@@ -115,8 +117,10 @@ private:
     // Buffer for partial reads in getResponse (replaces old static buffer).
     string m_responseBuffer;
 
+#ifndef __unix__
     // Handle to the engine process (used by monitor thread).
     HANDLE m_hEngineProcess;
+#endif
 
 #ifdef _DEBUG
     string communications;
@@ -127,14 +131,18 @@ private:
     int searchDepth;
     int searchMaxTime;
     int searchMinTime;
+#ifndef __unix__
     HANDLE hEngineMonitor;
+#endif
     set<string> supportedOptions;
 
     bool readUciOptions(void);
     bool startEngine(const string&);
 
+#ifndef __unix__
     // Static wrapper for monitor thread; accesses Engine members through the parameter.
     static DWORD WINAPI EngineMonitorStatic(_In_ LPVOID lpParameter);
+#endif
 };
 
 #endif

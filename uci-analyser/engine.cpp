@@ -33,6 +33,10 @@
 
 #include "utils.h"
 
+#ifdef __unix__
+#include <sys/wait.h>
+#endif
+
 // Engine state now lives on the Engine instance as atomic members.
 // No more global variables — see engine.h for m_bEngineClosed, m_bWaitingForResponse,
 // m_iResponseCount, and m_responseBuffer.
@@ -228,6 +232,20 @@ void Engine::quitEngine(void) {
 
     send("quit");
 
+#ifdef __unix__
+    if (toEngine != NULL) {
+        fclose(toEngine);
+        toEngine = NULL;
+    }
+    if (fromEngine != NULL) {
+        fclose(fromEngine);
+        fromEngine = NULL;
+    }
+    if (enginePID > 0) {
+        waitpid(enginePID, NULL, 0);
+        enginePID = -1;
+    }
+#else
     if (hEngineMonitor != NULL) {
         // Wait for monitor thread to finish before closing the handle.
         WaitForSingleObject(hEngineMonitor, 30000);
@@ -235,7 +253,6 @@ void Engine::quitEngine(void) {
         hEngineMonitor = NULL;
     }
 
-#ifdef _WIN32
     // Close pipe handles to avoid resource leaks.
     if (writeToEngine != NULL) {
         CloseHandle(writeToEngine);
@@ -548,6 +565,7 @@ bool Engine::startEngine(const string& engineName) {
    return true;
 }
 
+#ifndef __unix__
 DWORD WINAPI Engine::EngineMonitorStatic(_In_ LPVOID lpParameter)
 {
     Engine* pEngine = static_cast<Engine*>(lpParameter);
@@ -612,3 +630,4 @@ DWORD WINAPI Engine::EngineMonitorStatic(_In_ LPVOID lpParameter)
     }
     return 0;
 }
+#endif

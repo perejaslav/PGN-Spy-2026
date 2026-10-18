@@ -812,8 +812,8 @@ bool CAnalysisDlg::LaunchAnalyser(CGamePGN vGamePGN, int iCurThread)
    int iBookDepthPlies = m_vEngineSettings.m_iBookDepth * 2; //double book depth, since analyser uses plies, not moves
    CString sEscapedEnginePath = EscapeCmdArg(m_vEngineSettings.m_sEnginePath);
    CString sEscapedFileName = EscapeCmdArg(vGamePGN.m_sFileName);
-   sCommandLine.Format(_T("--bookdepth %i --searchdepth %i --searchmaxtime %i --searchmintime %i --variations %i %s --setoption Hash %i --setoption Threads %i --engine \"%s\" \"%s\""),
-      iBookDepthPlies, m_vEngineSettings.m_iSearchDepth, m_vEngineSettings.m_iMaxTime,
+   sCommandLine.Format(_T("\"%s\" --bookdepth %i --searchdepth %i --searchmaxtime %i --searchmintime %i --variations %i %s --setoption Hash %i --setoption Threads %i --engine \"%s\" \"%s\""),
+      GetAnalyserFilePath(), iBookDepthPlies, m_vEngineSettings.m_iSearchDepth, m_vEngineSettings.m_iMaxTime,
       m_vEngineSettings.m_iMinTime, m_vEngineSettings.m_iNumVariations + 1, sWhiteOrBlack,
       m_vEngineSettings.m_iHashSize, m_vEngineSettings.m_iEngineThreads, sEscapedEnginePath, sEscapedFileName);
    if (!CreateProcess(GetAnalyserFilePath(), sCommandLine.GetBuffer(), NULL, NULL, TRUE, NORMAL_PRIORITY_CLASS | CREATE_SUSPENDED, NULL, NULL, &vStartupInfo, &vProcessInfo))

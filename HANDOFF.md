@@ -3,9 +3,10 @@
 ## Где мы остановились
 
 2026-10-18: сделан обзор кода.
-Исправлены баги 1–8 (не собрано: нужна Windows + MFC, проверить сборку в VS 2022).
+Исправлены баги 1–15 (не собрано: нужна Windows + MFC, проверить сборку в VS 2022).
 Временные файлы и вывод анализатора теперь в UTF-8; входной PGN определяется сам (UTF-8 или ANSI).
-Следующий шаг: баги 9–15.
+uci-analyser собирается под Linux (`make`) и проверен со Stockfish.
+Следующий шаг: проверить сборку GUI в VS 2022, затем «Мелочи» и «Идеи».
 
 ## Проект в двух словах
 
@@ -36,15 +37,15 @@
    Тег вроде `[Event "U<18"]` даёт битый XML → партия считается ошибочной.
 8. ✅ **Кодировка** — всё читается/пишется в `CP_ACP`.
    PGN в UTF-8 (lichess, chess.com) с кириллицей → кракозябры, фильтр по имени игрока не срабатывает.
-9. **Выход за границы массива** — `analyse.cpp`, `extractInfo`.
+9. ✅ **Выход за границы массива** — `analyse.cpp`, `extractInfo`.
    Если в строке `info` нет `time` (или `depth` последний), читается `infoTokens[size]`. Stockfish так не пишет, другие движки могут.
-10. **Утечка памяти** — `analyse.cpp`, `saveEvaluation`: старая оценка удаляется из вектора без `delete`.
-11. **`unsigned` вместо `size_t`** — `analyse.cpp`, `extractTagValue`: на x64/Linux сравнение с `npos` всегда истинно.
-12. **Linux-сборка сломана** — `engine.h/.cpp` используют `HANDLE`, `WaitForSingleObject` вне `#ifdef`. `make` не собирается.
-13. **`-s` теряется у pgn-extract** — `Analysis.cpp`, `RunConverterToSAN`: первый токен командной строки съедается как argv[0].
+10. ✅ **Утечка памяти** — `analyse.cpp`, `saveEvaluation`: старая оценка удаляется из вектора без `delete`.
+11. ✅ **`unsigned` вместо `size_t`** — `analyse.cpp`, `extractTagValue`: на x64/Linux сравнение с `npos` всегда истинно.
+12. ✅ **Linux-сборка сломана** — `engine.h/.cpp` используют `HANDLE`, `WaitForSingleObject` вне `#ifdef`. `make` не собирается.
+13. ✅ **`-s` теряется у pgn-extract** — `Analysis.cpp`, `RunConverterToSAN`: первый токен командной строки съедается как argv[0].
     Там же причина хака `argnum = 0` в `analyse.cpp`. Лучше всегда передавать путь к exe первым аргументом.
-14. **Версии разъехались** — релиз v1.2.2, а `app.manifest` и `PGN Spy.rc` = 1.2.1.0. `analyse.cpp` VERSION = 2014.06.02.
-15. **`PGN Spy.aps` в git**, хотя `*.aps` в `.gitignore`. Это бинарный кэш VS.
+14. ✅ **Версии разъехались** — релиз v1.2.2, а `app.manifest` и `PGN Spy.rc` = 1.2.1.0. `analyse.cpp` VERSION = 2014.06.02.
+15. ✅ **`PGN Spy.aps` в git**, хотя `*.aps` в `.gitignore`. Это бинарный кэш VS.
 
 ## Мелочи
 
