@@ -47,6 +47,7 @@ CAnalysisDlg::CAnalysisDlg(CWnd* pParent /*=NULL*/)
    , m_iTargetParallelGames(0)
    , m_iMaxParallelGames(0)
    , m_eState(STATE_RUNNING)
+   , m_dPartialGames(0)
 {
 
 }
@@ -187,7 +188,7 @@ void CAnalysisDlg::UpdateProgressDisplay(const CString& sPhase, int iCompletedGa
 {
    m_sCurrentStatus = GetStateLabel() + _T(": ") + sPhase;
    if (iTotalGames > 0)
-      m_iProgressPercent = (iCompletedGames * 100) / iTotalGames;
+      m_iProgressPercent = min((int)((iCompletedGames + m_dPartialGames) * 100 / iTotalGames), 100);
    else
       m_iProgressPercent = 0;
 
@@ -203,6 +204,56 @@ void CAnalysisDlg::UpdateProgressDisplay(const CString& sPhase, int iCompletedGa
    m_bStatusChanged = true;
    UpdateThreadControlButtons();
    UpdateDisplay();
+}
+
+//Estimate how many positions the analyser will evaluate for a game: all moves after the book,
+//or only one side's moves when a player name is set. Mirrors the skipping logic in uci-analyser.
+static int EstimateExpectedPositions(const CString& sPGNText, int iBookDepthPlies, bool bOneSideOnly)
+{
+   int iPlies = 0;
+   bool bHasFEN = false;
+   int iLineStart = 0;
+   while (iLineStart < sPGNText.GetLength())
+   {
+      int iLineEnd = sPGNText.Find('\n', iLineStart);
+      if (iLineEnd == -1)
+         iLineEnd = sPGNText.GetLength();
+      CString sLine = sPGNText.Mid(iLineStart, iLineEnd - iLineStart);
+      iLineStart = iLineEnd + 1;
+      sLine.Trim();
+      if (sLine.IsEmpty())
+         continue;
+      if (sLine[0] == '[')
+      {
+         if (sLine.Left(5) == _T("[FEN "))
+            bHasFEN = true;
+         continue;
+      }
+      int iPos = 0;
+      CString sToken = sLine.Tokenize(_T(" \t"), iPos);
+      while (!sToken.IsEmpty())
+      {
+         if (sToken != _T("1-0") && sToken != _T("0-1") && sToken != _T("1/2-1/2") && sToken != _T("*"))
+            iPlies++;
+         sToken = sLine.Tokenize(_T(" \t"), iPos);
+      }
+   }
+   int iPositions = max(iPlies - (bHasFEN ? 0 : iBookDepthPlies), 0);
+   if (bOneSideOnly)
+      iPositions = (iPositions + 1) / 2;
+   return max(iPositions, 1);
+}
+
+static int CountOccurrences(const CStringA& sText, LPCSTR pszPattern)
+{
+   int iCount = 0;
+   int iPos = sText.Find(pszPattern);
+   while (iPos != -1)
+   {
+      iCount++;
+      iPos = sText.Find(pszPattern, iPos + 1);
+   }
+   return iCount;
 }
 
 bool CAnalysisDlg::ProcessGames()
@@ -299,6 +350,9 @@ bool CAnalysisDlg::ProcessGames()
       return true;
    }
 
+   for (int i = 0; i < avGamePGNs.GetSize(); i++)
+      avGamePGNs[i].m_iExpectedPositions = EstimateExpectedPositions(avGamePGNs[i].m_sPGNText, m_vEngineSettings.m_iBookDepth * 2, !m_vEngineSettings.m_sPlayerName.IsEmpty());
+
    m_sStatusHistory = _T("Creating temporary files...\r\n") + m_sStatusHistory;
    m_sStatus = m_sStatusHistory;
    UpdateProgressDisplay(_T("Creating temporary PGN files in %TEMP%..."), 0, avGamePGNs.GetSize(), 0);
@@ -338,6 +392,7 @@ bool CAnalysisDlg::ProcessGames()
    m_ahChildStdErrWrite.SetSize(m_vEngineSettings.m_iParallelGames);
    m_ahProcesses.SetSize(m_vEngineSettings.m_iParallelGames);
    m_ahJobObjects.SetSize(m_vEngineSettings.m_iParallelGames);
+   m_aiThreadGame.SetSize(m_vEngineSettings.m_iParallelGames);
    for (int i = 0; i < m_vEngineSettings.m_iParallelGames; i++)
    {
       m_ahChildStdInRead[i] = NULL;
@@ -348,6 +403,7 @@ bool CAnalysisDlg::ProcessGames()
       m_ahChildStdErrWrite[i] = NULL;
       m_ahProcesses[i] = NULL;
       m_ahJobObjects[i] = NULL;
+      m_aiThreadGame[i] = -1;
       abErrors[i] = false;
    }
 
@@ -378,7 +434,7 @@ bool CAnalysisDlg::ProcessGames()
          sPhase.Format(_T("Analysing game %i of %i..."), min(iNextGame + 1, avGamePGNs.GetSize()), avGamePGNs.GetSize());
       else
          sPhase = _T("Analysing games...");
-      m_sStatus = m_sStatusHistory;
+      m_sStatus = m_sLiveProgress + m_sStatusHistory;
       UpdateProgressDisplay(sPhase, iCompletedGames, avGamePGNs.GetSize(), iActiveProcesses);
 
       bThreadsStillRunning = false; //we'll turn this on later if needed
@@ -400,6 +456,7 @@ bool CAnalysisDlg::ProcessGames()
                return false;
             }
 
+            m_aiThreadGame[iCurThread] = iNextGame;
             iActiveProcesses++;
             bThreadsStillRunning = true; //we're launching a new thread
             iNextGame++;
@@ -456,6 +513,7 @@ bool CAnalysisDlg::ProcessGames()
                m_ahChildStdErrWrite.RemoveAt(iCurThread);
                m_ahProcesses.RemoveAt(iCurThread);
                m_ahJobObjects.RemoveAt(iCurThread);
+               m_aiThreadGame.RemoveAt(iCurThread);
 
                //decrement thread count
                m_vEngineSettings.m_iParallelGames--;
@@ -476,6 +534,25 @@ bool CAnalysisDlg::ProcessGames()
          UpdateProgressDisplay(_T("Analysis paused. Waiting to resume..."), iCompletedGames, avGamePGNs.GetSize(), iActiveProcesses);
       }
 
+      //per-move progress: the analyser writes one <move> element per evaluated position as it goes
+      m_dPartialGames = 0;
+      m_sLiveProgress.Empty();
+      for (int iThread = 0; iThread < m_vEngineSettings.m_iParallelGames; iThread++)
+      {
+         if (m_ahProcesses[iThread] == NULL || m_aiThreadGame[iThread] < 0)
+            continue;
+         const CGamePGN& vGamePGN = avGamePGNs[m_aiThreadGame[iThread]];
+         int iDone = CountOccurrences(asResults[iThread], "<move>");
+         int iExpected = max(vGamePGN.m_iExpectedPositions, iDone);
+         m_dPartialGames += (double)iDone / (double)max(iExpected, 1);
+         CString sLine;
+         sLine.Format(Loc(_T("> %s v %s: %i of ~%i moves analysed\r\n"), _T("> %s – %s: проанализировано %i из ~%i ходов\r\n")),
+            vGamePGN.m_sWhite, vGamePGN.m_sBlack, iDone, iExpected);
+         m_sLiveProgress += sLine;
+      }
+      if (!m_sLiveProgress.IsEmpty())
+         m_sLiveProgress += _T("\r\n");
+
       Sleep(50); //so we don't eat lots of CPU trying to check on every process constantly
 
       //check if we've incremented the thread count
@@ -494,6 +571,7 @@ bool CAnalysisDlg::ProcessGames()
          m_ahChildStdErrWrite.SetSize(m_vEngineSettings.m_iParallelGames);
          m_ahProcesses.SetSize(m_vEngineSettings.m_iParallelGames);
          m_ahJobObjects.SetSize(m_vEngineSettings.m_iParallelGames);
+         m_aiThreadGame.SetSize(m_vEngineSettings.m_iParallelGames);
          m_ahChildStdInRead[m_vEngineSettings.m_iParallelGames - 1] = NULL;
          m_ahChildStdInWrite[m_vEngineSettings.m_iParallelGames - 1] = NULL;
          m_ahChildStdOutRead[m_vEngineSettings.m_iParallelGames - 1] = NULL;
@@ -502,10 +580,13 @@ bool CAnalysisDlg::ProcessGames()
          m_ahChildStdErrWrite[m_vEngineSettings.m_iParallelGames - 1] = NULL;
          m_ahProcesses[m_vEngineSettings.m_iParallelGames - 1] = NULL;
          m_ahJobObjects[m_vEngineSettings.m_iParallelGames - 1] = NULL;
+         m_aiThreadGame[m_vEngineSettings.m_iParallelGames - 1] = -1;
          abErrors[m_vEngineSettings.m_iParallelGames - 1] = false;
       }
    }
 
+   m_dPartialGames = 0;
+   m_sLiveProgress.Empty();
    bool bPartialResults = m_bStopped;
    m_eState = STATE_COMPLETED;
    UpdateProgressDisplay(bPartialResults ? _T("Cleaning up after stop...") : _T("Cleaning up temporary files..."), iCompletedGames, avGamePGNs.GetSize(), 0);
