@@ -54,8 +54,10 @@ The engine executable can live anywhere on disk because PGN Spy stores the full 
 3. Enter the player name if you want to analyze only one side.
 4. Pick a UCI engine and adjust search settings if needed.
 5. Start the analysis.
-6. Watch the progress window for phase updates, pause/resume/stop controls, and per-game status.
-7. When the run completes, open the results window to review the XML summary or export the annotated PGN again.
+6. Watch the progress window: each active game shows how many of its moves are already analysed, and you can pause, resume, stop or change the number of parallel games.
+7. When the run completes, the results window opens. It explains every figure and warns when the sample is too small to draw conclusions.
+
+Tip: set **Engine threads = 1** and **Parallel games = number of physical cores**. Each game then runs on its own core.
 
 ## Output Files
 
@@ -71,7 +73,25 @@ By default, the final XML and annotated PGN are saved next to the source PGN wit
 
 The application supports English and Russian. Use the `Language` selector in the main window, then restart the app to apply the change.
 
+## Download and Build
+
+Ready-to-run Windows builds are on the [Releases](https://github.com/perejaslav/PGN-Spy-2026/releases) page.
+
+Every push to `master` is built on GitHub Actions. To build locally, see [`BUILD-WINDOWS11.md`](BUILD-WINDOWS11.md).
+
 ## History
+
+`v1.2.3` is a bugfix and usability release:
+
+- statistics fixes: unevaluated moves no longer count as T1 matches; post-losing filter fixed for Black
+- a hung engine no longer stalls the analysis; analyser errors are detected
+- UTF-8 PGN files (lichess, chess.com) and non-Latin player names are supported
+- annotated PGN export works for games with a `FEN` tag
+- per-move progress for each active game
+- plain-language explanations in the results window
+- automatic Windows builds and releases on GitHub Actions
+
+See [`docs/releases/v1.2.3.en.md`](docs/releases/v1.2.3.en.md) for details.
 
 Compared with the original release, `v1.2.1` adds:
 

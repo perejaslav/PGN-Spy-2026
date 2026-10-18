@@ -303,7 +303,9 @@ bool CPGNSpyDlg::ConvertFileForAnalysis(CString OUT &sConvertedFile)
    CloseHandle(vProcessInfo.hProcess);
    CloseHandle(vProcessInfo.hThread);
 
-   return true;
+   //an empty output means pgn-extract could not read the input or found no games
+   CFileStatus vStatus;
+   return CFile::GetStatus(sConvertedFile, vStatus) && vStatus.m_size > 0;
 }
 
 void CPGNSpyDlg::OnBnClickedRunanalysis()

@@ -42,8 +42,30 @@ To run the GUI successfully, keep these files together in the application folder
 
 `stockfish.exe` can live anywhere, because the GUI stores the absolute engine path in its settings.
 
+## Packing a release zip locally
+
+```powershell
+.\scripts\package.ps1 -Version 1.2.3 -PgnExtract 'D:\path\to\pgn-extract.exe'
+```
+
+The zip is written to `dist\`.
+
+## GitHub Actions
+
+`.github/workflows/release.yml` builds the solution on `windows-2022` (the image that ships MFC) for every push to `master` and every pull request. The zip is attached to the run as an artifact.
+
+To publish a release, run the workflow manually (Actions → Build and release → Run workflow) and enter a version such as `1.2.3`. It needs `docs/releases/vX.Y.Z.ru.md` and `.en.md`. Running it again for an existing version replaces that release, its tag and zip with the current commit. `pgn-extract.exe` is taken from the v1.2.1 release.
+
+## Linux
+
+`uci-analyser` also builds on Linux:
+
+```sh
+cd uci-analyser && make
+```
+
 ## Verified in this repository
 
-- `uci-analyser` builds successfully with VS 2022 Build Tools after retargeting.
-- `uci-analyser` runs correctly against Stockfish 18.
-- The GUI project still requires local MFC installation before it can be built.
+- Both projects build with VS 2022 locally and on GitHub Actions (0 errors, 0 warnings).
+- `uci-analyser` runs correctly against Stockfish 18 on Windows and against Stockfish on Linux.
+- `Setup/Setup.vdproj` is a legacy installer project; it is not built and references old Stockfish versions.
