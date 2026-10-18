@@ -16,9 +16,9 @@ permissions:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2022 # VS 2022 image ships MFC; windows-latest (VS 18) does not
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: microsoft/setup-msbuild@v2
 
