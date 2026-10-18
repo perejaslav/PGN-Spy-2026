@@ -555,6 +555,9 @@ CString CStats::GetResultsText()
    CString sResults;
    sLine.Format(Loc(_T("Positions: %i"), _T("Позиции: %i")), m_iNumPositions);
    sResults = sLine + _T("\r\n");
+   if (m_iNumPositions > 0 && m_iNumPositions < 100)
+      sResults += Loc(_T("  ! Too few positions: conclusions are premature (aim for several hundred).\r\n"),
+                      _T("  ! Мало позиций: выводы делать рано (нужно хотя бы несколько сотен).\r\n"));
    if (m_iNumPositions > 0)
    {
       //T-values
@@ -628,6 +631,9 @@ CString CStats::GetResultsText()
       }
 
       sLine.Format(Loc(_T("CP loss mean %.2f, std deviation %.2f"), _T("Средняя потеря %.2f, стандартное отклонение %.2f")), m_dAvgCentipawnLoss,m_dCentipawnLossStdDeviation);
+      sResults += sLine + _T("\r\n");
+      sLine.Format(Loc(_T("  = on average each move was %.2f pawns worse than the engine's best"),
+                       _T("  = в среднем каждый ход хуже лучшего хода движка на %.2f пешки")), m_dAvgCentipawnLoss / 100.0);
       sResults += sLine + _T("\r\n");
    }
    return sResults;

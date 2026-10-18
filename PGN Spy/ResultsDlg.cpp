@@ -362,22 +362,52 @@ void CResultsDlg::CalculateStats()
    else
       m_sResults.Format(Loc(_T("%i games\r\n\r\n"), _T("%i партий\r\n\r\n")), iGamesInSubset);
    m_sResults += Loc(_T("UNDECIDED POSITIONS\r\n"), _T("НЕЯСНЫЕ ПОЗИЦИИ\r\n"));
+   m_sResults += Loc(_T("(neither side is ahead by more than the equal position threshold)\r\n"),
+                     _T("(никто не впереди больше, чем на порог равной позиции)\r\n"));
    m_sResults += m_vUndecidedPositions.GetResultsText();
    if (m_vAnalysisSettings.m_bIncludeLosing)
    {
       m_sResults += Loc(_T("\r\nLOSING POSITIONS\r\n"), _T("\r\nПРОИГРАННЫЕ ПОЗИЦИИ\r\n"));
+      m_sResults += Loc(_T("(the player is behind, but not hopelessly)\r\n"),
+                        _T("(игрок уступает, но ещё не безнадёжно)\r\n"));
       m_sResults += m_vLosingPositions.GetResultsText();
    }
    if (m_vAnalysisSettings.m_bIncludeWinning)
    {
       m_sResults += Loc(_T("\r\nWINNING POSITIONS\r\n"), _T("\r\nВЫИГРАННЫЕ ПОЗИЦИИ\r\n"));
+      m_sResults += Loc(_T("(the player is ahead, but the game is not yet decided)\r\n"),
+                        _T("(игрок впереди, но партия ещё не решена)\r\n"));
       m_sResults += m_vWinningPositions.GetResultsText();
    }
    if (m_vAnalysisSettings.m_bIncludePostLosing)
    {
       m_sResults += Loc(_T("\r\nPOST-LOSING POSITIONS\r\n"), _T("\r\nПОЗИЦИИ ПОСЛЕ УХУДШЕНИЯ\r\n"));
+      m_sResults += Loc(_T("(moves after the player was already worse; catches cheating to save lost games)\r\n"),
+                        _T("(ходы после того, как игрок оказался хуже; ловит тех, кто спасает проигранные партии)\r\n"));
       m_sResults += m_vPostLosingPositions.GetResultsText();
    }
+
+   m_sResults += Loc(
+      _T("\r\n----------------------------------------\r\n")
+      _T("HOW TO READ\r\n")
+      _T("T1 - the move matched the engine's first choice. T2 - one of its top two. T3 - one of its top three.\r\n")
+      _T("   Forced and obvious moves are excluded from T-values, so their count is lower than the number of positions.\r\n")
+      _T("CP loss - how much worse the move was than the engine's best, in hundredths of a pawn (100 = 1 pawn).\r\n")
+      _T("   =0 - exactly the engine's move. >100 - a serious mistake. >200 and >500 - blunders.\r\n")
+      _T("Std error - margin of error. Roughly, the true value lies within +/- 2 std errors of the result.\r\n")
+      _T("Std deviation - how uneven the mistakes were: large means accurate moves mixed with blunders.\r\n")
+      _T("\r\nOne player's numbers mean little on their own: compare them with honest players of similar strength,\r\n")
+      _T("analysed with the same settings. This is an investigative aid, not proof of cheating.\r\n"),
+      _T("\r\n----------------------------------------\r\n")
+      _T("КАК ЧИТАТЬ\r\n")
+      _T("T1 — ход совпал с первым выбором движка. T2 — с одним из двух лучших. T3 — с одним из трёх.\r\n")
+      _T("   Вынужденные и очевидные ходы в T не считаются, поэтому их меньше, чем позиций.\r\n")
+      _T("Потеря — насколько ход хуже лучшего, в сотых долях пешки (100 = 1 пешка).\r\n")
+      _T("   =0 — ровно ход движка. >100 — серьёзная ошибка. >200 и >500 — грубые зевки.\r\n")
+      _T("Стд. ошибка — погрешность. Настоящее значение примерно в пределах ± 2 ошибки от результата.\r\n")
+      _T("Стандартное отклонение — насколько неровно игрок ошибался: большое значит точные ходы вперемешку с зевками.\r\n")
+      _T("\r\nЦифры одного игрока сами по себе мало что значат: сравнивайте с честными игроками того же уровня,\r\n")
+      _T("проанализированными с теми же настройками. Это подсказка для расследования, а не доказательство.\r\n"));
 
    UpdateData(FALSE);
 }
