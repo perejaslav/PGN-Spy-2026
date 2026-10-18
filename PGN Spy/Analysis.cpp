@@ -410,6 +410,7 @@ bool CGame::LoadGame(CString sGameText)
          return false;
       sText = vGame.GetData();
       vPosition.m_bWhite = _ttoi(sText) == 1;
+      vPosition.m_iMovePlayed = -1; //stays -1 if the played move was not evaluated
       while (vGame.FindElem(_T("evaluation")))
       {
          //find all moves and their evaluation

@@ -180,6 +180,8 @@ void CResultsDlg::OnBnClickedSavedata()
       {
          //first get general game data
          CPosition *pPosition = &pGame->m_avPositions[iPosition];
+         if (pPosition->m_iMovePlayed < 0)
+            continue; //played move has no engine evaluation
          //the \' before the result is so Excel won't be stupid and treat 1-0 as a date - 1/1/2000
          sLine = pGame->m_sEvent + _T("\t") + pGame->m_sDate + _T("\t") + pGame->m_sWhite + _T("\t") + pGame->m_sBlack + _T("\t\'") + pGame->m_sResult + _T("\t") + pGame->m_sTimeControl + _T("\t");
 
@@ -322,6 +324,8 @@ void CResultsDlg::CalculateStats()
          CPosition *pPosition = &m_avGames[iGame].m_avPositions[iPosition];
          if (pPosition->m_bWhite || !m_vEngineSettings.m_sPlayerName.IsEmpty())
             iMoveNum++; //increment move if we're looking at a white move, or if engine only analysed one player's games
+         if (pPosition->m_iMovePlayed < 0)
+            continue; //played move has no engine evaluation; don't count it as a T1 match
          if (!IncludePositionInStats(m_avGames[iGame], *pPosition, iMoveNum, bExcludeWhite, bExcludeBlack))
             continue;
 
@@ -338,7 +342,7 @@ void CResultsDlg::CalculateStats()
          if (pPosition->IsWinningPosition(m_vAnalysisSettings.m_iEqualPositionThreshold, m_vAnalysisSettings.m_iLosingThreshold))
             m_vWinningPositions.AddPosition(*pPosition, m_vAnalysisSettings);
          if (!pPosition->IsExcludedPosition(m_vAnalysisSettings.m_iLosingThreshold) &&
-            (pPosition->m_bWhite && bFoundLosingPositionWhite) || (!pPosition->m_bWhite && bFoundLosingPositionBlack))
+            ((pPosition->m_bWhite && bFoundLosingPositionWhite) || (!pPosition->m_bWhite && bFoundLosingPositionBlack)))
          {
             //if we've found a losing position and we're not now in a totally dead position, we've got a
             //post-losing position, useful for catching someone who cheats to save a lost game.
@@ -664,6 +668,8 @@ void CResultsDlg::OnBnClickedPerGameExport()
          CPosition *pPosition = &pGame->m_avPositions[iPosition];
          if (pPosition->m_bWhite || !m_vEngineSettings.m_sPlayerName.IsEmpty())
             iMoveNum++; //increment move if we're looking at a white move, or if engine only analysed one player's games
+         if (pPosition->m_iMovePlayed < 0)
+            continue; //played move has no engine evaluation; don't count it as a T1 match
          if (!IncludePositionInStats(*pGame, *pPosition, iMoveNum, bExcludeWhite, bExcludeBlack))
             continue;
          if (pPosition->IsEqualPosition(m_vAnalysisSettings.m_iEqualPositionThreshold))

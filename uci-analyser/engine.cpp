@@ -568,8 +568,10 @@ DWORD WINAPI Engine::EngineMonitorStatic(_In_ LPVOID lpParameter)
             iEngineLockedCount++;
             if (iEngineLockedCount > 20)
             {
+                // Kill the hung engine directly. Calling quitEngine() here would
+                // wait on this very thread and leave the engine running.
                 if (!pEngine->m_bEngineClosed)
-                    pEngine->quitEngine();
+                    TerminateProcess(pEngine->m_hEngineProcess, 1);
             }
         }
         else
