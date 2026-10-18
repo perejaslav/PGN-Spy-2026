@@ -22,14 +22,12 @@ jobs:
 
       - uses: microsoft/setup-msbuild@v2
 
-      # WindowsTargetPlatformVersion=10.0 uses the newest SDK on the runner,
-      # so the build does not break when the image drops a specific SDK.
+      # Build the solution so both exes land in the shared Release\ folder.
+      # WindowsTargetPlatformVersion=10.0 uses the newest SDK on the runner.
       - name: Build
         shell: pwsh
         run: |
-          msbuild 'uci-analyser\uci-analyser.vcxproj' /t:Build /m /p:Configuration=Release /p:Platform=Win32 /p:WindowsTargetPlatformVersion=10.0
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          msbuild 'PGN Spy\PGN Spy.vcxproj' /t:Build /m /p:Configuration=Release /p:Platform=Win32 /p:WindowsTargetPlatformVersion=10.0
+          msbuild 'PGN Spy.sln' /t:Build /m /p:Configuration=Release /p:Platform=Win32 /p:WindowsTargetPlatformVersion=10.0
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       # pgn-extract.exe is not built from this repository; reuse the one shipped in v1.2.1.
