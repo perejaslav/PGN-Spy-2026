@@ -89,6 +89,9 @@ public:
    CString m_sInputFilePath;
    EAnalysisState m_eState;
    CArray<HANDLE, HANDLE> m_ahJobObjects;
+   CArray<int, int> m_aiThreadGame; //index into the game list for each analyser slot, -1 if idle
+   double m_dPartialGames; //fraction of active games already analysed, for a smooth progress bar
+   CString m_sLiveProgress; //per-game move progress shown above the status log
    void UpdateThreadControlButtons();
    CString GetStateLabel() const;
    void UpdateProgressDisplay(const CString& sPhase, int iCompletedGames, int iTotalGames, int iActiveProcesses, const CString& sLastEvent = _T(""));
@@ -99,7 +102,7 @@ public:
    bool AutoSaveOutputs(bool bPartialResults);
    bool ProcessGames();
    bool LaunchAnalyser(CGamePGN vGamePGN, int iCurThread);
-   void ReadFromThread(int iThread, CString IN OUT &rsResults, bool IN OUT &rbError);
+   void ReadFromThread(int iThread, CStringA IN OUT &rsResults, bool IN OUT &rbError);
    bool ProcessOutput(CString sOutput);
    afx_msg void OnBnClickedDecreasethreads();
    afx_msg void OnBnClickedIncreasethreads();

@@ -39,7 +39,7 @@
 
 using namespace std;
 
-static const char *VERSION = "2014.06.02";
+static const char *VERSION = "2014.06.02-pgnspy-1.2.3";
 
 // The length of algebraic moves expected by a UCI engine.
 #define ALGEBRAIC_MOVELEN 4
@@ -99,8 +99,6 @@ int main(int argc, char *argv[]) {
 
     bool ok = true;
     int argnum = 1;
-    if (argc > 1 && strncmp(argv[argnum], "--", 2) != 0)
-       argnum = 0; //depending on how the process is launched, sometimes the exe path comes in argv[0]
 
 
     // Process --arguments.
@@ -283,8 +281,7 @@ bool runEngine(vector<string> files) {
         engine->quitEngine();
         delete engine;
         engine = NULL;
-    }    catch (int e) {
-        e; //squelch compiler warning
+    } catch (int) {
         cerr << "Failed to start " << engineName << endl;
         ok = false;
     }
@@ -328,9 +325,9 @@ bool processStdin(void) {
 /* Extract the string between quotes as the value of a tag. */
 static string extractTagValue(const string& line)
 {
-    unsigned first_quote = line.find_first_of("\"");
+    size_t first_quote = line.find_first_of("\"");
     if (first_quote != string::npos) {
-	unsigned second_quote = line.find_first_of("\"", first_quote + 1);
+	size_t second_quote = line.find_first_of("\"", first_quote + 1);
 	if (second_quote != string::npos) {
 	    return string(line.substr(first_quote + 1, second_quote - first_quote - 1).c_str());
 	} else {
@@ -569,7 +566,7 @@ void extractInfo(string &info, vector<string> infoTokens, int searchDepth, int s
         int multipvIndex = 1, multipv;
         while (multipvIndex +1 < numTokens && infoTokens[multipvIndex] != "multipv")
            multipvIndex++;
-        multipv = atoi(infoTokens[multipvIndex + 1].c_str());
+        multipv = (multipvIndex + 1 < numTokens) ? atoi(infoTokens[multipvIndex + 1].c_str()) : 1;
         if (multipv != 1)
            engineCouldBeStuck = false; //if we're stuck, we only ever report one variation
         if (info.find("mate") != string::npos)
@@ -578,12 +575,13 @@ void extractInfo(string &info, vector<string> infoTokens, int searchDepth, int s
            int mate = 1;
            while (mate+1 < numTokens && infoTokens[mate] != "mate")
               mate++;
-           if (multipv == 1 && atoi(infoTokens[mate + 1].c_str()) < 0)
+           if (multipv == 1 && mate + 1 < numTokens && atoi(infoTokens[mate + 1].c_str()) < 0)
               beingMated = true;
         }
-        if (t < numTokens) {
+        if (t + 1 < numTokens) {
             int depth = strToInt(infoTokens[t + 1]);
-            int time = strToInt(infoTokens[i + 1]);
+            // Some engines omit "time"; treat that as 0 rather than reading past the end.
+            int time = (i + 1 < numTokens) ? strToInt(infoTokens[i + 1]) : 0;
             bool engineStuck = engineCouldBeStuck && depth > 50; //if we've at depth 50 and never been given another variation, assume engine's stuck and bail out
             if (!engineStuck && depth > 30 && time < 1000)
                engineStuck = true; //if we reach depth 30 in under a second, we probably have some very forced lines, which tends to mean we get stuck
@@ -710,8 +708,12 @@ bool annotateMove(const string &playedMove) {
 void outputTag(const string& tagLine)
 {
     // The tag name.
-    int first_quote = tagLine.find_first_of("\"");
-    int last_quote = tagLine.find_last_of("\"");
+    size_t first_quote = tagLine.find_first_of("\"");
+    size_t last_quote = tagLine.find_last_of("\"");
+    if (first_quote == string::npos || first_quote < 2 || last_quote <= first_quote) {
+        cerr << "Malformed tag: " << tagLine << endl;
+        return;
+    }
     cout << "<tag name = \"";
     cout << tagLine.substr(1, first_quote - 2) << "\"";
 
@@ -719,6 +721,8 @@ void outputTag(const string& tagLine)
     cout << " value = ";
     string value = tagLine.substr(first_quote + 1, last_quote - first_quote - 1);
     escapeForXML(value, "&", "&amp;");
+    escapeForXML(value, "<", "&lt;");
+    escapeForXML(value, ">", "&gt;");
     // Escape any quote characters.
     string escaped_quote("\\\"");
     size_t qindex = value.find(escaped_quote);
@@ -756,6 +760,7 @@ void saveEvaluation(Evaluation *ev, const string& info) {
     }
     if (it != evaluations.end()) {
         // Delete the previous one.
+        delete *it;
         evaluations.erase(it);
     }
     // Insert in decreasing order.

@@ -280,7 +280,7 @@ bool CPGNSpyDlg::ConvertFileForAnalysis(CString OUT &sConvertedFile)
 
    CString sEscapedInput = EscapeCmdArg(m_sInputFile);
    CString sEscapedOutput = EscapeCmdArg(sConvertedFile);
-   CString sCommandLine = _T(" -Wuci \"-o") + sEscapedOutput + _T("\" \"") + sEscapedInput + _T("\"");
+   CString sCommandLine = _T("\"") + GetConverterFilePath() + _T("\" -Wuci \"-o") + sEscapedOutput + _T("\" \"") + sEscapedInput + _T("\"");
 
    PROCESS_INFORMATION vProcessInfo;
    STARTUPINFO vStartupInfo = {0};

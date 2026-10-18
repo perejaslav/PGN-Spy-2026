@@ -22,4 +22,5 @@ void ApplyDialogTranslations(CWnd* pDialog, UINT nDialogId);
 void PopulateLanguageCombo(CComboBox& vCombo, EAppLanguage eSelectedLanguage);
 EAppLanguage GetSelectedLanguage(const CComboBox& vCombo);
 
-bool WriteCStringToFile(CFile& vFile, const CString& sText);
+bool WriteCStringToFile(CFile& vFile, const CString& sText, UINT nCodePage = CP_ACP);
+CString DecodeTextBytes(const CStringA& sBytes);

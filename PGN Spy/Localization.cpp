@@ -200,12 +200,40 @@ EAppLanguage GetSelectedLanguage(const CComboBox& vCombo)
    return (nLanguage == APPLANG_RUSSIAN) ? APPLANG_RUSSIAN : APPLANG_ENGLISH;
 }
 
-bool WriteCStringToFile(CFile& vFile, const CString& sText)
+bool WriteCStringToFile(CFile& vFile, const CString& sText, UINT nCodePage)
 {
-   CT2A sAnsiText(sText, CP_ACP);
-   LPCSTR pszText = sAnsiText;
+   CT2A sEncodedText(sText, nCodePage);
+   LPCSTR pszText = sEncodedText;
    if (pszText == NULL)
       return false;
    vFile.Write(pszText, (UINT)strlen(pszText));
    return true;
+}
+
+//Decode bytes as UTF-8 if they are valid UTF-8, otherwise as the ANSI code page.
+//PGN files from online sites are usually UTF-8; older ones are usually ANSI.
+CString DecodeTextBytes(const CStringA& sBytes)
+{
+   LPCSTR pszBytes = sBytes;
+   int iLength = sBytes.GetLength();
+   if (iLength >= 3 && (BYTE)pszBytes[0] == 0xEF && (BYTE)pszBytes[1] == 0xBB && (BYTE)pszBytes[2] == 0xBF)
+   {
+      pszBytes += 3; //skip UTF-8 BOM
+      iLength -= 3;
+   }
+   if (iLength == 0)
+      return CString();
+
+   UINT nCodePage = CP_UTF8;
+   int iChars = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, pszBytes, iLength, NULL, 0);
+   if (iChars == 0)
+   {
+      nCodePage = CP_ACP;
+      iChars = MultiByteToWideChar(CP_ACP, 0, pszBytes, iLength, NULL, 0);
+   }
+
+   CStringW sText;
+   MultiByteToWideChar(nCodePage, 0, pszBytes, iLength, sText.GetBuffer(iChars), iChars);
+   sText.ReleaseBuffer(iChars);
+   return CString(sText);
 }

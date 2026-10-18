@@ -157,8 +157,9 @@ public:
 class CGamePGN
 {
 public:
-   CGamePGN() {}
+   CGamePGN() : m_iExpectedPositions(0) {}
    CString m_sPGNText;
+   int m_iExpectedPositions; //estimated number of positions the analyser will evaluate
    CString m_sWhite;
    CString m_sBlack;
    CString m_sFileName;

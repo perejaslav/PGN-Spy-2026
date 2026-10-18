@@ -410,6 +410,7 @@ bool CGame::LoadGame(CString sGameText)
          return false;
       sText = vGame.GetData();
       vPosition.m_bWhite = _ttoi(sText) == 1;
+      vPosition.m_iMovePlayed = -1; //stays -1 if the played move was not evaluated
       while (vGame.FindElem(_T("evaluation")))
       {
          //find all moves and their evaluation
@@ -554,6 +555,9 @@ CString CStats::GetResultsText()
    CString sResults;
    sLine.Format(Loc(_T("Positions: %i"), _T("Позиции: %i")), m_iNumPositions);
    sResults = sLine + _T("\r\n");
+   if (m_iNumPositions > 0 && m_iNumPositions < 100)
+      sResults += Loc(_T("  ! Too few positions: conclusions are premature (aim for several hundred).\r\n"),
+                      _T("  ! Мало позиций: выводы делать рано (нужно хотя бы несколько сотен).\r\n"));
    if (m_iNumPositions > 0)
    {
       //T-values
@@ -627,6 +631,9 @@ CString CStats::GetResultsText()
       }
 
       sLine.Format(Loc(_T("CP loss mean %.2f, std deviation %.2f"), _T("Средняя потеря %.2f, стандартное отклонение %.2f")), m_dAvgCentipawnLoss,m_dCentipawnLossStdDeviation);
+      sResults += sLine + _T("\r\n");
+      sLine.Format(Loc(_T("  = on average each move was %.2f pawns worse than the engine's best"),
+                       _T("  = в среднем каждый ход хуже лучшего хода движка на %.2f пешки")), m_dAvgCentipawnLoss / 100.0);
       sResults += sLine + _T("\r\n");
    }
    return sResults;
@@ -861,7 +868,7 @@ bool ExportGameArrayToAnnotatedPGN(CString sFileName, const CArray<CGame, CGame>
       rsError = Loc(_T("Failed to create a temporary PGN file for export."), _T("Не удалось создать временный PGN-файл для экспорта."));
       return false;
    }
-   if (!WriteCStringToFile(vFile, sCombinedText))
+   if (!WriteCStringToFile(vFile, sCombinedText, CP_UTF8))
    {
       vFile.Close();
       rsError = Loc(_T("Failed to write the temporary PGN file for export."), _T("Не удалось записать временный PGN-файл для экспорта."));
@@ -972,9 +979,11 @@ static bool BuildAnnotatedUCIGameText(const CGame &vGame, const CEngineSettings 
    }
 
    bool bWhiteToMove = true;
+   bool bHasFEN = false;
    int iFenTag = sTags.Find(_T("[FEN \""));
    if (iFenTag != -1)
    {
+      bHasFEN = true;
       int iFenStart = iFenTag + 6;
       int iFenEnd = sTags.Find(_T("\"]"), iFenStart);
       if (iFenEnd == -1)
@@ -1001,7 +1010,8 @@ static bool BuildAnnotatedUCIGameText(const CGame &vGame, const CEngineSettings 
       bAnalyseBlack = vEngineSettings.m_sPlayerName.CompareNoCase(vGame.m_sBlack) == 0;
    }
 
-   int iBookDepthPlies = max(vEngineSettings.m_iBookDepth * 2, 0);
+   //the analyser skips no book moves for games starting from a FEN position, so do the same here
+   int iBookDepthPlies = bHasFEN ? 0 : max(vEngineSettings.m_iBookDepth * 2, 0);
    int iNonResultMovesSeen = 0;
    CString sAnnotatedMoves;
    int iPosition = 0;
@@ -1050,7 +1060,8 @@ static bool RunConverterToSAN(const CString &sInputPath, const CString &sOutputP
    CString sEscapedInput = EscapeCmdArg(sInputPath);
    CString sEscapedOutput = EscapeCmdArg(sOutputPath);
    CString sCommandLine;
-   sCommandLine.Format(_T("-s -Wsan -o\"%s\" \"%s\""), sEscapedOutput, sEscapedInput);
+   //argv[0] must be the program itself, otherwise the first real option is swallowed
+   sCommandLine.Format(_T("\"%s\" -s -Wsan -o\"%s\" \"%s\""), GetConverterFilePath(), sEscapedOutput, sEscapedInput);
    if (!CreateProcess(GetConverterFilePath(), sCommandLine.GetBuffer(), NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &vStartupInfo, &vProcessInfo))
    {
       sCommandLine.ReleaseBuffer();
