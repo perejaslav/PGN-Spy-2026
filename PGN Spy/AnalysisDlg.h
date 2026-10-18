@@ -99,7 +99,7 @@ public:
    bool AutoSaveOutputs(bool bPartialResults);
    bool ProcessGames();
    bool LaunchAnalyser(CGamePGN vGamePGN, int iCurThread);
-   void ReadFromThread(int iThread, CString IN OUT &rsResults, bool IN OUT &rbError);
+   void ReadFromThread(int iThread, CStringA IN OUT &rsResults, bool IN OUT &rbError);
    bool ProcessOutput(CString sOutput);
    afx_msg void OnBnClickedDecreasethreads();
    afx_msg void OnBnClickedIncreasethreads();

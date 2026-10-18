@@ -719,6 +719,8 @@ void outputTag(const string& tagLine)
     cout << " value = ";
     string value = tagLine.substr(first_quote + 1, last_quote - first_quote - 1);
     escapeForXML(value, "&", "&amp;");
+    escapeForXML(value, "<", "&lt;");
+    escapeForXML(value, ">", "&gt;");
     // Escape any quote characters.
     string escaped_quote("\\\"");
     size_t qindex = value.find(escaped_quote);

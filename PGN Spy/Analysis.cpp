@@ -862,7 +862,7 @@ bool ExportGameArrayToAnnotatedPGN(CString sFileName, const CArray<CGame, CGame>
       rsError = Loc(_T("Failed to create a temporary PGN file for export."), _T("Не удалось создать временный PGN-файл для экспорта."));
       return false;
    }
-   if (!WriteCStringToFile(vFile, sCombinedText))
+   if (!WriteCStringToFile(vFile, sCombinedText, CP_UTF8))
    {
       vFile.Close();
       rsError = Loc(_T("Failed to write the temporary PGN file for export."), _T("Не удалось записать временный PGN-файл для экспорта."));
@@ -973,9 +973,11 @@ static bool BuildAnnotatedUCIGameText(const CGame &vGame, const CEngineSettings 
    }
 
    bool bWhiteToMove = true;
+   bool bHasFEN = false;
    int iFenTag = sTags.Find(_T("[FEN \""));
    if (iFenTag != -1)
    {
+      bHasFEN = true;
       int iFenStart = iFenTag + 6;
       int iFenEnd = sTags.Find(_T("\"]"), iFenStart);
       if (iFenEnd == -1)
@@ -1002,7 +1004,8 @@ static bool BuildAnnotatedUCIGameText(const CGame &vGame, const CEngineSettings 
       bAnalyseBlack = vEngineSettings.m_sPlayerName.CompareNoCase(vGame.m_sBlack) == 0;
    }
 
-   int iBookDepthPlies = max(vEngineSettings.m_iBookDepth * 2, 0);
+   //the analyser skips no book moves for games starting from a FEN position, so do the same here
+   int iBookDepthPlies = bHasFEN ? 0 : max(vEngineSettings.m_iBookDepth * 2, 0);
    int iNonResultMovesSeen = 0;
    CString sAnnotatedMoves;
    int iPosition = 0;

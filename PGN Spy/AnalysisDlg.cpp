@@ -207,8 +207,8 @@ void CAnalysisDlg::UpdateProgressDisplay(const CString& sPhase, int iCompletedGa
 
 bool CAnalysisDlg::ProcessGames()
 {
-   CStdioFile vConvertedPGN;
-   if (!vConvertedPGN.Open(m_sConvertedPGN, CFile::modeRead))
+   CFile vConvertedPGN;
+   if (!vConvertedPGN.Open(m_sConvertedPGN, CFile::modeRead | CFile::shareDenyWrite))
    {
       CString sMessage = Loc(_T("Failed to open converted PGN for analysis."), _T("Не удалось открыть подготовленный PGN для анализа."));
       MessageBox(sMessage, GetAppTitle(), MB_ICONEXCLAMATION);
@@ -218,14 +218,29 @@ bool CAnalysisDlg::ProcessGames()
    m_sStatusHistory = Loc(_T("Reading PGN file..."), _T("Чтение PGN-файла..."));
    m_sStatus = m_sStatusHistory;
    UpdateProgressDisplay(Loc(_T("Reading converted PGN..."), _T("Чтение подготовленного PGN...")), 0, 0, 0);
+   //Read the whole file as bytes and decode it (UTF-8 or ANSI), so non-Latin player names survive
+   CStringA sConvertedBytes;
+   UINT nFileLength = (UINT)vConvertedPGN.GetLength();
+   UINT nBytesRead = vConvertedPGN.Read(sConvertedBytes.GetBuffer(nFileLength), nFileLength);
+   sConvertedBytes.ReleaseBuffer(nBytesRead);
+   vConvertedPGN.Close();
+   CString sConvertedText = DecodeTextBytes(sConvertedBytes);
+
    //Pull games out of file
    bool bKeepLooping = true;
+   int iLineStart = 0;
    CArray<CGamePGN, CGamePGN> avGamePGNs;
    while (bKeepLooping)
    {
       CString sLine;
-      if (vConvertedPGN.ReadString(sLine))
+      if (iLineStart < sConvertedText.GetLength())
       {
+         int iLineEnd = sConvertedText.Find('\n', iLineStart);
+         if (iLineEnd == -1)
+            iLineEnd = sConvertedText.GetLength();
+         sLine = sConvertedText.Mid(iLineStart, iLineEnd - iLineStart);
+         sLine.TrimRight(_T("\r"));
+         iLineStart = iLineEnd + 1;
          if (avGamePGNs.GetSize() == 0 || sLine.Left(8).CompareNoCase(_T("[Event \")")) == 0)
          {
             //found a new game
@@ -257,7 +272,6 @@ bool CAnalysisDlg::ProcessGames()
       }
       else
       {
-         vConvertedPGN.Close();
          bKeepLooping = false;
       }
    }
@@ -299,7 +313,7 @@ bool CAnalysisDlg::ProcessGames()
          MessageBox(sMessage, _T("PGN Spy"), MB_ICONEXCLAMATION);
          return false;
       }
-      if (!WriteCStringToFile(vFile, avGamePGNs[i].m_sPGNText))
+      if (!WriteCStringToFile(vFile, avGamePGNs[i].m_sPGNText, CP_UTF8))
       {
          CString sMessage = _T("Failed to write temporary output file.");
          MessageBox(sMessage, _T("PGN Spy"), MB_ICONEXCLAMATION);
@@ -311,7 +325,7 @@ bool CAnalysisDlg::ProcessGames()
 
    //We now have a complete set of files; time to process them
 
-   CStringArray asResults;
+   CArray<CStringA, CStringA> asResults; //raw UTF-8 bytes from each analyser
    CArray<bool, bool> abErrors;
    asResults.SetSize(m_vEngineSettings.m_iParallelGames);
    abErrors.SetSize(m_vEngineSettings.m_iParallelGames);
@@ -417,7 +431,7 @@ bool CAnalysisDlg::ProcessGames()
             }
             else
             {
-               if (ProcessOutput(asResults[iCurThread]))
+               if (ProcessOutput(CString(CA2W(asResults[iCurThread], CP_UTF8))))
                   sStatusLine.Format(_T("Finished game: %s v %s"), m_avGames[m_avGames.GetUpperBound()].m_sWhite, m_avGames[m_avGames.GetUpperBound()].m_sBlack);
                else
                   sStatusLine = _T("Encountered game with error");
@@ -648,7 +662,7 @@ bool CAnalysisDlg::AutoSaveOutputs(bool bPartialResults)
    return !m_sSavedResultsPath.IsEmpty() || !m_sSavedPGNPath.IsEmpty();
 }
 
-void CAnalysisDlg::ReadFromThread(int iThread, CString IN OUT &rsResults, bool IN OUT &rbError)
+void CAnalysisDlg::ReadFromThread(int iThread, CStringA IN OUT &rsResults, bool IN OUT &rbError)
 {
    if (m_ahChildStdOutRead[iThread] == NULL)
    {
@@ -659,40 +673,37 @@ void CAnalysisDlg::ReadFromThread(int iThread, CString IN OUT &rsResults, bool I
    //we won't need to close these handles; they're closed elsewhere
 
    char sBuf[1001];
-   ZeroMemory(sBuf, sizeof(sBuf));
 
-   //check for failure
-   DWORD iExitCode;
+   //check for failure; the analyser returns -1 or -2 on error, which shows up as a large DWORD
+   DWORD iExitCode = STILL_ACTIVE;
    GetExitCodeProcess(m_ahProcesses[iThread], &iExitCode);
-   if (iExitCode != STILL_ACTIVE && iExitCode < 0)
+   if (iExitCode != STILL_ACTIVE && iExitCode != 0)
    {
       //found error
       rbError = true;
    }
 
-   //process hasn't terminated; check for error anyway
-   DWORD iBytesAvailable;
-   PeekNamedPipe(m_ahChildStdErrRead[iThread], NULL, NULL, NULL, &iBytesAvailable, NULL);
-   if (iBytesAvailable > 0)
+   //drain stderr so the pipe doesn't fill up and lock the analyser; the text itself isn't used
+   CFile vErrFile(m_ahChildStdErrRead[iThread]);
+   for (;;)
    {
-      //Read error for debugging purposes - also to ensure pipe doesn't fill up and lock up the analyser
-      CFile vErrFile(m_ahChildStdErrRead[iThread]);
-      int iBytesRead = vErrFile.Read(sBuf, 1000);
-      return;
+      DWORD iBytesAvailable = 0;
+      if (!PeekNamedPipe(m_ahChildStdErrRead[iThread], NULL, NULL, NULL, &iBytesAvailable, NULL) || iBytesAvailable == 0)
+         break;
+      vErrFile.Read(sBuf, min(iBytesAvailable, (DWORD)1000));
    }
 
-   //no failure, keep reading until we reach end of results or end of what's currently in the pipe
-   while (rsResults.Find(_T("</gamelist>")) == -1)
+   //keep reading stdout until we reach end of results or end of what's currently in the pipe
+   while (rsResults.Find("</gamelist>") == -1)
    {
       //ensure there's still data to read
-      DWORD iBytesAvailable;
-      PeekNamedPipe(m_ahChildStdOutRead[iThread], NULL, NULL, NULL, &iBytesAvailable, NULL);
-      if (iBytesAvailable <= 0)
+      DWORD iBytesAvailable = 0;
+      if (!PeekNamedPipe(m_ahChildStdOutRead[iThread], NULL, NULL, NULL, &iBytesAvailable, NULL) || iBytesAvailable == 0)
          break; //hit end of pipe
 
-	      int iBytesRead = vOutFile.Read(sBuf, 1000);
-	      rsResults.Append(CA2T(sBuf, CP_ACP));
-	      ZeroMemory(sBuf, sizeof(sBuf)); //initialise for next time round
+      UINT iBytesRead = vOutFile.Read(sBuf, min(iBytesAvailable, (DWORD)1000));
+      //keep raw bytes; decode once the output is complete so multi-byte characters aren't split
+      rsResults.Append(sBuf, (int)iBytesRead);
    }
 }
 
