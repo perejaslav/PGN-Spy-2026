@@ -327,7 +327,7 @@ bool CAnalysisDlg::ProcessGames()
       }
    }
 
-   UpdateProgressDisplay(_T("Preparing game list..."), 0, avGamePGNs.GetSize(), 0);
+   UpdateProgressDisplay(Loc(_T("Preparing game list..."), _T("Подготовка списка партий...")), 0, avGamePGNs.GetSize(), 0);
 
    //Check if any games should be skipped
    if (!m_vEngineSettings.m_sPlayerName.IsEmpty())
@@ -345,7 +345,7 @@ bool CAnalysisDlg::ProcessGames()
 
    if (avGamePGNs.GetSize() == 0)
    {
-      CString sMessage = _T("No games to analyse.  If you have entered a player name, please ensure it is spelled correctly.");
+      CString sMessage = Loc(_T("No games to analyse.  If you have entered a player name, please ensure it is spelled correctly."), _T("Нет партий для анализа. Если вы указали игрока, проверьте написание имени."));
       MessageBox(sMessage, _T("PGN Spy"), MB_ICONINFORMATION);
       return true;
    }
@@ -353,9 +353,9 @@ bool CAnalysisDlg::ProcessGames()
    for (int i = 0; i < avGamePGNs.GetSize(); i++)
       avGamePGNs[i].m_iExpectedPositions = EstimateExpectedPositions(avGamePGNs[i].m_sPGNText, m_vEngineSettings.m_iBookDepth * 2, !m_vEngineSettings.m_sPlayerName.IsEmpty());
 
-   m_sStatusHistory = _T("Creating temporary files...\r\n") + m_sStatusHistory;
+   m_sStatusHistory = Loc(_T("Creating temporary files...\r\n"), _T("Создание временных файлов...\r\n")) + m_sStatusHistory;
    m_sStatus = m_sStatusHistory;
-   UpdateProgressDisplay(_T("Creating temporary PGN files in %TEMP%..."), 0, avGamePGNs.GetSize(), 0);
+   UpdateProgressDisplay(Loc(_T("Creating temporary PGN files in %TEMP%..."), _T("Создание временных PGN-файлов в %TEMP%...")), 0, avGamePGNs.GetSize(), 0);
    //We now have a complete list of games; dump them to files
    for (int i = 0; i < avGamePGNs.GetSize(); i++)
    {
@@ -363,13 +363,13 @@ bool CAnalysisDlg::ProcessGames()
       CFile vFile;
       if (!vFile.Open(avGamePGNs[i].m_sFileName, CFile::modeCreate | CFile::modeWrite))
       {
-         CString sMessage = _T("Failed to create temporary output file.");
+         CString sMessage = Loc(_T("Failed to create temporary output file."), _T("Не удалось создать временный файл."));
          MessageBox(sMessage, _T("PGN Spy"), MB_ICONEXCLAMATION);
          return false;
       }
       if (!WriteCStringToFile(vFile, avGamePGNs[i].m_sPGNText, CP_UTF8))
       {
-         CString sMessage = _T("Failed to write temporary output file.");
+         CString sMessage = Loc(_T("Failed to write temporary output file."), _T("Не удалось записать временный файл."));
          MessageBox(sMessage, _T("PGN Spy"), MB_ICONEXCLAMATION);
          vFile.Close();
          return false;
@@ -427,13 +427,13 @@ bool CAnalysisDlg::ProcessGames()
 
       CString sPhase;
       if (m_eState == STATE_PAUSED)
-         sPhase = _T("Analysis paused. Waiting to resume...");
+         sPhase = Loc(_T("Analysis paused. Waiting to resume..."), _T("Анализ приостановлен. Ожидание продолжения..."));
       else if (m_eState == STATE_PAUSING)
-         sPhase = _T("Waiting for active games to finish before pausing...");
+         sPhase = Loc(_T("Waiting for active games to finish before pausing..."), _T("Ожидание завершения активных партий перед паузой..."));
       else if (avGamePGNs.GetSize() > 0)
-         sPhase.Format(_T("Analysing game %i of %i..."), min(iNextGame + 1, avGamePGNs.GetSize()), avGamePGNs.GetSize());
+         sPhase.Format(Loc(_T("Analysing game %i of %i..."), _T("Анализ партии %i из %i...")), min(iNextGame + 1, avGamePGNs.GetSize()), avGamePGNs.GetSize());
       else
-         sPhase = _T("Analysing games...");
+         sPhase = Loc(_T("Analysing games..."), _T("Анализ партий..."));
       m_sStatus = m_sLiveProgress + m_sStatusHistory;
       UpdateProgressDisplay(sPhase, iCompletedGames, avGamePGNs.GetSize(), iActiveProcesses);
 
@@ -461,7 +461,7 @@ bool CAnalysisDlg::ProcessGames()
             bThreadsStillRunning = true; //we're launching a new thread
             iNextGame++;
             CString sStatusLine;
-            sStatusLine.Format(_T("Started analysis for %s v %s"), avGamePGNs[iNextGame - 1].m_sWhite, avGamePGNs[iNextGame - 1].m_sBlack);
+            sStatusLine.Format(Loc(_T("Started analysis for %s v %s"), _T("Начат анализ: %s – %s")), avGamePGNs[iNextGame - 1].m_sWhite, avGamePGNs[iNextGame - 1].m_sBlack);
             m_sStatusHistory = sStatusLine + _T("\r\n") + m_sStatusHistory;
             m_sStatus = m_sStatusHistory;
             UpdateProgressDisplay(sPhase, iCompletedGames, avGamePGNs.GetSize(), iActiveProcesses, sStatusLine);
@@ -484,20 +484,20 @@ bool CAnalysisDlg::ProcessGames()
             if (abErrors[iCurThread])
             {
                m_iGamesWithErrors++; //skip games with errors
-               sStatusLine = _T("Encountered game with error");
+               sStatusLine = Loc(_T("Encountered game with error"), _T("Партия завершилась с ошибкой"));
             }
             else
             {
                if (ProcessOutput(CString(CA2W(asResults[iCurThread], CP_UTF8))))
-                  sStatusLine.Format(_T("Finished game: %s v %s"), m_avGames[m_avGames.GetUpperBound()].m_sWhite, m_avGames[m_avGames.GetUpperBound()].m_sBlack);
+                  sStatusLine.Format(Loc(_T("Finished game: %s v %s"), _T("Партия готова: %s – %s")), m_avGames[m_avGames.GetUpperBound()].m_sWhite, m_avGames[m_avGames.GetUpperBound()].m_sBlack);
                else
-                  sStatusLine = _T("Encountered game with error");
+                  sStatusLine = Loc(_T("Encountered game with error"), _T("Партия завершилась с ошибкой"));
             }
             m_sStatusHistory = sStatusLine + _T("\r\n") + m_sStatusHistory;
             asResults[iCurThread].Empty();
             abErrors[iCurThread] = false;
             m_sStatus = m_sStatusHistory;
-            UpdateProgressDisplay(_T("Collecting analysis results..."), iCompletedGames, avGamePGNs.GetSize(), iActiveProcesses, sStatusLine);
+            UpdateProgressDisplay(Loc(_T("Collecting analysis results..."), _T("Сбор результатов анализа...")), iCompletedGames, avGamePGNs.GetSize(), iActiveProcesses, sStatusLine);
 
             //check if we're supposed to be decrementing threads
             if (m_iTargetParallelGames < m_vEngineSettings.m_iParallelGames)
@@ -531,7 +531,7 @@ bool CAnalysisDlg::ProcessGames()
       if (m_eState == STATE_PAUSING && iActiveProcesses == 0)
       {
          m_eState = STATE_PAUSED;
-         UpdateProgressDisplay(_T("Analysis paused. Waiting to resume..."), iCompletedGames, avGamePGNs.GetSize(), iActiveProcesses);
+         UpdateProgressDisplay(Loc(_T("Analysis paused. Waiting to resume..."), _T("Анализ приостановлен. Ожидание продолжения...")), iCompletedGames, avGamePGNs.GetSize(), iActiveProcesses);
       }
 
       //per-move progress: the analyser writes one <move> element per evaluated position as it goes
@@ -589,7 +589,7 @@ bool CAnalysisDlg::ProcessGames()
    m_sLiveProgress.Empty();
    bool bPartialResults = m_bStopped;
    m_eState = STATE_COMPLETED;
-   UpdateProgressDisplay(bPartialResults ? _T("Cleaning up after stop...") : _T("Cleaning up temporary files..."), iCompletedGames, avGamePGNs.GetSize(), 0);
+   UpdateProgressDisplay(bPartialResults ? Loc(_T("Cleaning up after stop..."), _T("Очистка после остановки...")) : Loc(_T("Cleaning up temporary files..."), _T("Удаление временных файлов...")), iCompletedGames, avGamePGNs.GetSize(), 0);
 
    //clean up temporary files
    for (int i = 0; i < avGamePGNs.GetSize(); i++)
@@ -601,20 +601,20 @@ bool CAnalysisDlg::ProcessGames()
 
    CString sMessage;
    if (bPartialResults)
-      sMessage.Format(_T("Analysis stopped after %i of %i games completed."), iCompletedGames, avGamePGNs.GetSize());
+      sMessage.Format(Loc(_T("Analysis stopped after %i of %i games completed."), _T("Анализ остановлен: завершено %i из %i партий.")), iCompletedGames, avGamePGNs.GetSize());
    else if (m_iGamesWithErrors > 0)
-      sMessage.Format(_T("Errors were encountered on %i games out of a total %i to be analysed."), m_iGamesWithErrors, avGamePGNs.GetSize());
+      sMessage.Format(Loc(_T("Errors were encountered on %i games out of a total %i to be analysed."), _T("Ошибки в %i партиях из %i.")), m_iGamesWithErrors, avGamePGNs.GetSize());
    else
-      sMessage.Format(_T("Analysis of %i games completed with no errors."), avGamePGNs.GetSize());
+      sMessage.Format(Loc(_T("Analysis of %i games completed with no errors."), _T("Анализ %i партий завершён без ошибок.")), avGamePGNs.GetSize());
    if (m_bShowResults)
    {
       if (!m_sSavedResultsPath.IsEmpty())
-         sMessage += _T("\r\n\r\nAnalysis XML saved to:\r\n") + m_sSavedResultsPath;
+         sMessage += Loc(_T("\r\n\r\nAnalysis XML saved to:\r\n"), _T("\r\n\r\nXML анализа сохранён:\r\n")) + m_sSavedResultsPath;
       else if (!m_sAutoSaveError.IsEmpty())
-         sMessage += _T("\r\n\r\n") + m_sAutoSaveError + _T("\r\nYou can still save the results manually from the Results window.");
+         sMessage += _T("\r\n\r\n") + m_sAutoSaveError + Loc(_T("\r\nYou can still save the results manually from the Results window."), _T("\r\nРезультаты можно сохранить вручную в окне результатов."));
 
       if (!m_sSavedPGNPath.IsEmpty())
-         sMessage += _T("\r\n\r\nAnnotated PGN saved to:\r\n") + m_sSavedPGNPath;
+         sMessage += Loc(_T("\r\n\r\nAnnotated PGN saved to:\r\n"), _T("\r\n\r\nАннотированный PGN сохранён:\r\n")) + m_sSavedPGNPath;
       else if (!m_sAutoSavePGNError.IsEmpty())
          sMessage += _T("\r\n\r\n") + m_sAutoSavePGNError;
    }
@@ -629,12 +629,12 @@ void CAnalysisDlg::RequestStop()
    if (m_eState == STATE_STOPPING || m_eState == STATE_COMPLETED)
       return;
 
-   if (IDNO == MessageBox(_T("Stop the current analysis and keep only the games that have already finished?"), _T("PGN Spy"), MB_ICONQUESTION | MB_YESNO))
+   if (IDNO == MessageBox(Loc(_T("Stop the current analysis and keep only the games that have already finished?"), _T("Остановить анализ и сохранить только уже завершённые партии?")), _T("PGN Spy"), MB_ICONQUESTION | MB_YESNO))
       return;
 
    m_bStopped = true;
    m_eState = STATE_STOPPING;
-   m_sStatusHistory = _T("Stop requested. Active analysis processes will be cancelled.\r\n") + m_sStatusHistory;
+   m_sStatusHistory = Loc(_T("Stop requested. Active analysis processes will be cancelled.\r\n"), _T("Запрошена остановка. Активные анализаторы будут закрыты.\r\n")) + m_sStatusHistory;
    m_bStatusChanged = true;
    UpdateThreadControlButtons();
    UpdateDisplay();
@@ -729,7 +729,7 @@ bool CAnalysisDlg::AutoSaveOutputs(bool bPartialResults)
    if (SaveGameArrayToFile(sResultsPath, m_avGames, m_vEngineSettings))
       m_sSavedResultsPath = sResultsPath;
    else
-      m_sAutoSaveError = _T("Failed to auto-save analysis XML to: ") + sResultsPath;
+      m_sAutoSaveError = Loc(_T("Failed to auto-save analysis XML to: "), _T("Не удалось автоматически сохранить XML анализа: ")) + sResultsPath;
 
    CString sPGNPath = sResultsPath;
    if (!sPGNPath.Replace(_T(".xml"), _T(".pgn")))
@@ -738,7 +738,7 @@ bool CAnalysisDlg::AutoSaveOutputs(bool bPartialResults)
    if (ExportGameArrayToAnnotatedPGN(sPGNPath, m_avGames, m_vEngineSettings, sExportError))
       m_sSavedPGNPath = sPGNPath;
    else
-      m_sAutoSavePGNError = _T("Failed to auto-save annotated PGN: ") + sExportError;
+      m_sAutoSavePGNError = Loc(_T("Failed to auto-save annotated PGN: "), _T("Не удалось автоматически сохранить аннотированный PGN: ")) + sExportError;
 
    return !m_sSavedResultsPath.IsEmpty() || !m_sSavedPGNPath.IsEmpty();
 }
@@ -826,13 +826,13 @@ bool CAnalysisDlg::LaunchAnalyser(CGamePGN vGamePGN, int iCurThread)
    //create std in pipe for writing to child process
    if (!CreatePipe(&m_ahChildStdInRead[iCurThread], &m_ahChildStdInWrite[iCurThread], &vAttrib, 0))
    {
-      CString sMessage = _T("Failed to create pipe to communicate with analyser.");
+      CString sMessage = Loc(_T("Failed to create pipe to communicate with analyser."), _T("Не удалось создать канал связи с анализатором."));
       MessageBox(sMessage, _T("PGN Spy"), MB_ICONEXCLAMATION);
       return false;
    }
    if (!SetHandleInformation(m_ahChildStdInWrite[iCurThread], HANDLE_FLAG_INHERIT, 0))
    {
-      CString sMessage = _T("Failed set up pipe to communicate with analyser.");
+      CString sMessage = Loc(_T("Failed set up pipe to communicate with analyser."), _T("Не удалось настроить канал связи с анализатором."));
       MessageBox(sMessage, _T("PGN Spy"), MB_ICONEXCLAMATION);
       CleanupPipes(1);
       return false;
@@ -841,14 +841,14 @@ bool CAnalysisDlg::LaunchAnalyser(CGamePGN vGamePGN, int iCurThread)
    //create std out pipe for reading from child process
    if (!CreatePipe(&m_ahChildStdOutRead[iCurThread], &m_ahChildStdOutWrite[iCurThread], &vAttrib, 0))
    {
-      CString sMessage = _T("Failed to create pipe to communicate with analyser.");
+      CString sMessage = Loc(_T("Failed to create pipe to communicate with analyser."), _T("Не удалось создать канал связи с анализатором."));
       MessageBox(sMessage, _T("PGN Spy"), MB_ICONEXCLAMATION);
       CleanupPipes(1);
       return false;
    }
    if (!SetHandleInformation(m_ahChildStdOutRead[iCurThread], HANDLE_FLAG_INHERIT, 0))
    {
-      CString sMessage = _T("Failed set up pipe to communicate with analyser.");
+      CString sMessage = Loc(_T("Failed set up pipe to communicate with analyser."), _T("Не удалось настроить канал связи с анализатором."));
       MessageBox(sMessage, _T("PGN Spy"), MB_ICONEXCLAMATION);
       CleanupPipes(2);
       return false;
@@ -857,14 +857,14 @@ bool CAnalysisDlg::LaunchAnalyser(CGamePGN vGamePGN, int iCurThread)
    //create std err pipe for reading from child process
    if (!CreatePipe(&m_ahChildStdErrRead[iCurThread], &m_ahChildStdErrWrite[iCurThread], &vAttrib, 0))
    {
-      CString sMessage = _T("Failed to create pipe to communicate with analyser.");
+      CString sMessage = Loc(_T("Failed to create pipe to communicate with analyser."), _T("Не удалось создать канал связи с анализатором."));
       MessageBox(sMessage, _T("PGN Spy"), MB_ICONEXCLAMATION);
       CleanupPipes(2);
       return false;
    }
    if (!SetHandleInformation(m_ahChildStdErrRead[iCurThread], HANDLE_FLAG_INHERIT, 0))
    {
-      CString sMessage = _T("Failed set up pipe to communicate with analyser.");
+      CString sMessage = Loc(_T("Failed set up pipe to communicate with analyser."), _T("Не удалось настроить канал связи с анализатором."));
       MessageBox(sMessage, _T("PGN Spy"), MB_ICONEXCLAMATION);
       CleanupPipes(3);
       return false;
@@ -901,7 +901,7 @@ bool CAnalysisDlg::LaunchAnalyser(CGamePGN vGamePGN, int iCurThread)
    {
       sCommandLine.ReleaseBuffer();
       DWORD dwError = GetLastError();
-      CString sMessage = _T("Failed to launch analyser.  Please ensure it is in the same folder as PGN Spy, with the file name \"uci-analyser.exe\".");
+      CString sMessage = Loc(_T("Failed to launch analyser.  Please ensure it is in the same folder as PGN Spy, with the file name \"uci-analyser.exe\"."), _T("Не удалось запустить анализатор. Убедитесь, что он лежит в папке PGN Spy и называется \"uci-analyser.exe\"."));
       MessageBox(sMessage, _T("PGN Spy"), MB_ICONEXCLAMATION);
       return false;
    }
@@ -954,7 +954,7 @@ void CAnalysisDlg::OnBnClickedDecreasethreads()
       m_iTargetParallelGames = 1;
    }
    CString sStatusLine;
-   sStatusLine.Format(_T("Number of parallel games will be decreased to %i as active games are completed.\r\n"), m_iTargetParallelGames);
+   sStatusLine.Format(Loc(_T("Number of parallel games will be decreased to %i as active games are completed.\r\n"), _T("Число параллельных партий уменьшится до %i по мере завершения активных.\r\n")), m_iTargetParallelGames);
    m_sStatusHistory = sStatusLine + m_sStatusHistory;
    m_bStatusChanged = true;
    UpdateThreadControlButtons();
@@ -970,7 +970,7 @@ void CAnalysisDlg::OnBnClickedIncreasethreads()
       m_iTargetParallelGames = m_iMaxParallelGames;
    }
    CString sStatusLine;
-   sStatusLine.Format(_T("Number of parallel games increased to %i.\r\n"), m_iTargetParallelGames);
+   sStatusLine.Format(Loc(_T("Number of parallel games increased to %i.\r\n"), _T("Число параллельных партий увеличено до %i.\r\n")), m_iTargetParallelGames);
    m_sStatusHistory = sStatusLine + m_sStatusHistory;
    m_bStatusChanged = true;
    UpdateThreadControlButtons();
@@ -985,12 +985,12 @@ void CAnalysisDlg::OnBnClickedPauseresume()
    if (m_eState == STATE_PAUSED || m_eState == STATE_PAUSING)
    {
       m_eState = STATE_RUNNING;
-      sStatusLine = _T("Analysis resumed.\r\n");
+      sStatusLine = Loc(_T("Analysis resumed.\r\n"), _T("Анализ продолжен.\r\n"));
    }
    else
    {
       m_eState = STATE_PAUSING;
-      sStatusLine = _T("Pause requested. No new games will be started until analysis is resumed.\r\n");
+      sStatusLine = Loc(_T("Pause requested. No new games will be started until analysis is resumed.\r\n"), _T("Запрошена пауза. Новые партии не запустятся, пока анализ не продолжится.\r\n"));
    }
 
    m_sStatusHistory = sStatusLine + m_sStatusHistory;

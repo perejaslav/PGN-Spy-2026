@@ -492,11 +492,8 @@ void CStats::AddPosition(CPosition &vPosition, const CAnalysisSettings &vSetting
    m_iNumPositions++;
    m_iTotalCentipawnLoss += vPosition.GetCentipawnLoss();
 
-   int iCPLossIndex = 0;
    int iCPLoss = vPosition.GetCentipawnLoss();
-   while (iCPLossIndex < m_aiCentipawnLosses.GetSize() && m_aiCentipawnLosses[iCPLossIndex] > iCPLoss)
-      iCPLossIndex++; //sort cp loss array highest to lowest
-   m_aiCentipawnLosses.InsertAt(iCPLossIndex, iCPLoss);
+   m_aiCentipawnLosses.Add(iCPLoss); //order doesn't matter for the std deviation; sorted insertion was O(n^2)
 
    if (iCPLoss > 0)
       m_i0CPLoss++;
